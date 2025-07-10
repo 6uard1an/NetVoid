@@ -2,6 +2,8 @@
 
 NetVoid is a fully offline communication system built for ESP32 and Flipper Zero. It turns your ESP32 into a Wi-Fi access point that hosts a local chatroom or peer-to-peer chat—no internet required. Perfect for secure, private communication in any environment.
 
+
+![Example chat](images/example-image4.png)
 ---
 
 ## 🔧 Requirements
@@ -43,22 +45,23 @@ NetVoid is a fully offline communication system built for ESP32 and Flipper Zero
 if you don't you can get it from here: [EvilPortal by bigbrodude6119](https://github.com/bigbrodude6119/flipper-zero-evil-portal).  
    - Copy the provided `Websocket.html` or `P2P.html` files to your Flipper Zero SD card under the portal directory (`SD Card/apps_data/evil_portal/html/`).
 
-   ![Example Evil Portal Setup](example-image1.png)
+   ![Example Evil Portal Setup](images/example-image1.png)
 
 3. **Launch the Portal**
 
    - Use the Evil Portal app on the Flipper Zero as normal
    - Select the html file of your choice (`Websocket.html` or `P2P.html`)
 
-   ![Launching Evil Portal](example-image2.png)
+   ![Launching Evil Portal](images/example-image2.png)
 
+> **Note:** The wifi will have a randomly generated password, you can see it on the flipper (above).
 4. **Join the Chat**
 
    - Any device connecting to the `NetVoid` AP will be redirected to the chat page if you are not redirected, simply go to the ip address your flipper says, e.g. `AP ip: 999.888.777.666`
    - Users can begin chatting immediately
    - The Flipper Zero displays all chat messages in real-time
 
-   ![Chat in Action](example-image3.png)
+   ![Chat in Action](images/example-image3.png)
 
 ---
 
