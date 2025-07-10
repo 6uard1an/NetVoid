@@ -7,15 +7,12 @@
 #include <set>
 
 #define MAX_HTML_SIZE 20000
-
 #define B_PIN 4
 #define G_PIN 5
 #define R_PIN 6
-
 #define WAITING 0
 #define GOOD 1
 #define BAD 2
-
 #define SET_HTML_CMD "sethtml="
 #define SET_AP_CMD "setap="
 #define RESET_CMD "reset"
@@ -27,10 +24,10 @@ DNSServer dnsServer;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-bool runServer = false;
-
 String user_name;
 String password;
+
+bool runServer = false;
 bool name_received = false;
 bool password_received = false;
 
@@ -39,7 +36,7 @@ char index_html[MAX_HTML_SIZE] = "TEST";
 
 // message history
 std::deque<String> messageLog;
-const size_t maxMessages = 5;
+const size_t maxMessages = 50;
 
 // RESET
 void (*resetFunction)(void) = 0;
@@ -103,7 +100,8 @@ void setupServer() {
     uint32_t ip = request->client()->remoteIP();
     if (connectedClients.find(ip) == connectedClients.end()) {
       connectedClients.insert(ip);
-      Serial.println("client connected");
+      Serial.println(String(ip) + " connected");
+
     }
     request->send_P(200, "text/html", index_html);
   });
@@ -123,17 +121,12 @@ void setupServer() {
   server.onNotFound([](AsyncWebServerRequest *request) {
     request->redirect("http://" + WiFi.softAPIP().toString());
   });
-
-  Serial.println("web server up");
 }
 
 void startAP() {
   char apPassword[9];
   for (int i = 0; i < 8; ++i) apPassword[i] = 'a' + random(26);
   apPassword[8] = '\0';  // null terminator
-
-  Serial.print("starting ap ");
-  Serial.println(apName);
 
   WiFi.mode(WIFI_AP);
   WiFi.softAP(apName, apPassword, 1, 0, 255);
@@ -171,18 +164,16 @@ void getInitInput() {
         ptr += strlen(SET_HTML_CMD);
         strncpy(index_html, ptr, strlen(ptr) - 1);
         has_html = true;
-        Serial.println("html set");
+        Serial.println("Captive portal set");
       } else if (strncmp(ptr, SET_AP_CMD, strlen(SET_AP_CMD)) == 0) {
         ptr += strlen(SET_AP_CMD);
         strncpy(apName, ptr, strlen(ptr) - 1);
         has_ap = true;
-        Serial.println("ap set");
       } else if (strncmp(ptr, RESET_CMD, strlen(RESET_CMD)) == 0) {
         resetFunction();
       }
     }
   }
-  Serial.println("all set");
 }
 
 void startPortal() {
