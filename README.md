@@ -11,7 +11,7 @@ NetVoid is a fully offline communication system built for ESP32 and Flipper Zero
 - ESP32 board  
 - Flipper Zero  
 - Evil Portal app by [bigbrodude6119](https://github.com/bigbrodude6119/flipper-zero-evil-portal)  
-- NetVoid firmware (`NetVoid.iso` or `NetVoid.bin`)  
+- NetVoid firmware (`NetVoid.iso`)  
 - HTML chat page (`Websocket.html` or `P2P.html`)
 
 ---
@@ -37,8 +37,7 @@ NetVoid is a fully offline communication system built for ESP32 and Flipper Zero
 
 1. **Flash the ESP32**
 
-   Flash your ESP32 with either `NetVoid.iso` or `NetVoid.bin`. This prepares the board to host the chat system.
-> **Note:** `NetVoid.bin` and `NetVoid.iso` are the same firmware — choose either format based on your preferred flashing method. It's purely for your convenience.
+   Flash your ESP32 with `NetVoid.iso`. This prepares the board to host the chat system.
 2. **Prepare the Flipper Zero**
 
    - Make sure you have the Evil Portal app installed already,
