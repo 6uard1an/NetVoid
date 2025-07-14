@@ -36,6 +36,7 @@ char index_html[MAX_HTML_SIZE] = "TEST";
 
 // message history
 std::deque<String> messageLog;
+//set message history to 50 by default, you can change it here: (how many messages the server backs up)
 const size_t maxMessages = 50;
 
 // RESET
@@ -124,18 +125,18 @@ void setupServer() {
 }
 
 void startAP() {
-  char apPassword[9];
-  for (int i = 0; i < 8; ++i) apPassword[i] = 'a' + random(26);
-  apPassword[8] = '\0';  // null terminator
-
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(apName, apPassword, 1, 0, 255);
+  if (password.length() > 0) {
+    WiFi.softAP(apName, password.c_str(), 1, 0, 255);
+  } else {
+    WiFi.softAP(apName, nullptr, 1, 0, 255);
+  }
   Serial.print("AP ip: ");
   Serial.println(WiFi.softAPIP());
   Serial.print("AP name: ");
   Serial.println(apName);
   Serial.print("AP password: ");
-  Serial.println(apPassword);
+  Serial.println(password.length() > 0 ? password : "(none)");
 
   setupServer();
 
@@ -167,7 +168,20 @@ void getInitInput() {
         Serial.println("Captive portal set");
       } else if (strncmp(ptr, SET_AP_CMD, strlen(SET_AP_CMD)) == 0) {
         ptr += strlen(SET_AP_CMD);
-        strncpy(apName, ptr, strlen(ptr) - 1);
+        String apData = String(ptr);
+        apData.trim();
+        //seperates the AP name from the AP password (from the Set AP name option on flipper)
+        //e.g. Set AP name to "AP_NAME_HERE;AP_PASSWORD_HERE" <-- the `;` symbol seperates the name/password
+        int sep = apData.indexOf(';');
+        if (sep != -1) {
+          String name = apData.substring(0, sep);
+          String pass = apData.substring(sep + 1);
+          name.toCharArray(apName, sizeof(apName));
+          password = pass;
+        } else {
+          apData.toCharArray(apName, sizeof(apName));
+          password = ""; // open network
+        }
         has_ap = true;
       } else if (strncmp(ptr, RESET_CMD, strlen(RESET_CMD)) == 0) {
         resetFunction();
