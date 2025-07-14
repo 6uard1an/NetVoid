@@ -38,6 +38,7 @@ NetVoid is a fully offline communication system built for ESP32 and Flipper Zero
 1. **Flash the ESP32**
 
    Flash your ESP32 with `NetVoid.iso`. This prepares the board to host the chat system.
+> **Note:** The NetVoid.iso comes with a restriction on how many messages get saved to the server, you can change it on line 40: `const size_t maxMessages = 50;`
 2. **Prepare the Flipper Zero**
 
    - Make sure you have the Evil Portal app installed already,
@@ -49,6 +50,8 @@ if you don't you can get it from here: [EvilPortal by bigbrodude6119](https://gi
 3. **Launch the Portal**
 
    - Use the Evil Portal app on the Flipper Zero as normal
+> **Note:** The `Set AP name` option within the `Evil Portal` on the flipper can be set to have a password too, instead of just naming your AP, you can add a `;` after it as a seperator, and input a password
+e.g. Set AP name to "AP_NAME_HERE;AP_PASSWORD_HERE" <-- the `;` symbol seperates the name/password
    - Select the html file of your choice (`Websocket.html` or `P2P.html`)
 
    ![Launching Evil Portal](images/example-image2.png)
