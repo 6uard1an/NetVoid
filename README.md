@@ -1,18 +1,17 @@
-# NetVoid – Offline ESP32 Chatroom Works On Flipper Zero
+# NetVoid – Offline ESP32 Chatroom (Works on Flipper Zero)
 
-NetVoid is a fully offline communication system built for ESP32 and Flipper Zero. It turns your ESP32 into a Wi-Fi access point that hosts a local chatroom or peer-to-peer chat—no internet required. Perfect for secure, private communication in any environment.
-
+**NetVoid** is a fully offline communication system built for ESP32 and Flipper Zero. It transforms your ESP32 into a Wi-Fi access point that hosts a local chatroom or peer-to-peer chat—no internet required. Perfect for secure, private communication in any environment.
 
 ![Example chat](images/example-image4.png)
+
 ---
 
 ## 🔧 Requirements
 
-- ESP32 board  
-- Flipper Zero  
-- Evil Portal app by [bigbrodude6119](https://github.com/bigbrodude6119/flipper-zero-evil-portal)  
-- NetVoid firmware (`NetVoid.iso`)  
-- HTML chat page (`Websocket.html` or `P2P.html`)
+* Flipper Zero
+* ESP32 flashed with NetVoid firmware
+* **[Evil Portal app](https://github.com/bigbrodude6119/flipper-zero-evil-portal)** by **[@bigbrodude6119](https://github.com/bigbrodude6119)**
+* HTML chat page (**`Websocket.html`** or **`P2P.html`**)
 
 ---
 
@@ -20,56 +19,81 @@ NetVoid is a fully offline communication system built for ESP32 and Flipper Zero
 
 ### 1. **Chatroom Mode (Recommended)**
 
-- **Supports many users**
-- **No pairing or codes required**
-- Devices connect to the Wi-Fi and can immediately chat with others
-- Ideal for group communication
+* **Supports multiple users**
+* **No pairing or codes required**
+* Devices connect to the Wi-Fi and can start chatting instantly
+* Ideal for group communication
 
 ### 2. **P2P Mode**
 
-- **One-on-one encrypted chats**
-- Requires exchanging pairing codes
-- Less ideal if users are fully offline or unable to share codes
+* **One-on-one encrypted chats**
+* Requires exchanging pairing codes
+* Less suitable for fully offline or uncoordinated setups
 
 ---
 
 ## 🚀 Setup Instructions
 
-1. **Flash the ESP32**
+### 1. **Flash the ESP32**
 
-   Flash your ESP32 with `NetVoid.iso`. This prepares the board to host the chat system.
-> **Note:** The NetVoid.iso comes with a restriction on how many messages get saved to the server, you can change it on line 40: `const size_t maxMessages = 50;`
-2. **Prepare the Flipper Zero**
+Flash your ESP32 with **`NetVoid.iso`** to prepare it to host the chat system.
 
-   - Make sure you have the Evil Portal app installed already,
-if you don't you can get it from here: [EvilPortal by bigbrodude6119](https://github.com/bigbrodude6119/flipper-zero-evil-portal).  
-   - Copy the provided `Websocket.html` or `P2P.html` files to your Flipper Zero SD card under the portal directory (`SD Card/apps_data/evil_portal/html/`).
+> **Note:** The **`NetVoid.iso`** has a message storage limit. To increase it, edit line 40:
+> **`const size_t maxMessages = 50;`**
 
-   ![Example Evil Portal Setup](images/example-image1.png)
+---
 
-3. **Launch the Portal**
+### 🔥 Alternative Flash Method (**Flash from the Flipper!**)
 
-   - Use the Evil Portal app on the Flipper Zero as normal
-> **Note:** The `Set AP name` option within the `Evil Portal` on the flipper can be set to have a password too, instead of just naming your AP, you can add a `;` after it as a seperator, and input a password
-e.g. Set AP name to "AP_NAME_HERE;AP_PASSWORD_HERE" <-- the `;` symbol seperates the name/password
-   - Select the html file of your choice (`Websocket.html` or `P2P.html`)
+You can save the bootable **`.bin`** files from the **"Bootable Bins"** folder to your Flipper's SD card under:
+**`SD Card/apps_data/esp_flasher/`**
 
-   ![Launching Evil Portal](images/example-image2.png)
+Then use the **[ESP Flasher app](https://github.com/0xchocolate/flipperzero-esp-flasher)** by **[@0xchocolate](https://github.com/0xchocolate)**.
+Choose **Manual Flash** and select the appropriate **`.bin`** files manually.
 
-> **Note:** The wifi will have a randomly generated password, you can see it on the flipper (above).
-4. **Join the Chat**
+---
 
-   - Any device connecting to the `NetVoid` AP will be redirected to the chat page if you are not redirected, simply go to the ip address your flipper says, e.g. `AP ip: 999.888.777.666`
-   - Users can begin chatting immediately
-   - The Flipper Zero displays all chat messages in real-time
+### 2. **Prepare the Flipper Zero**
 
-   ![Chat in Action](images/example-image3.png)
+* Ensure the Evil Portal app is installed. If not, get it from:
+  **[Evil Portal app](https://github.com/bigbrodude6119/flipper-zero-evil-portal)** by **[@bigbrodude6119](https://github.com/bigbrodude6119)**
+* Copy the provided **`Websocket.html`** or **`P2P.html`** file to your Flipper’s SD card under:
+  **`SD Card/apps_data/evil_portal/html/`**
+
+![Example Evil Portal Setup](images/example-image1.png)
+
+---
+
+### 3. **Launch the Portal**
+
+* Open the Evil Portal app on your Flipper Zero
+* Use the **Set AP name** option to name your Wi-Fi access point
+
+> **Tip:** You can also set a password by adding a semicolon **`;`** after the name.
+> Format: **`"NetVoid;rhcdprod"`**
+
+* Select the desired HTML file (**`Websocket.html`** or **`P2P.html`**)
+
+![Launching Evil Portal](images/example-image2.png)
+
+> **Note:** The Flipper will display a randomly generated Wi-Fi password after startup.
+
+---
+
+### 4. **Join the Chat**
+
+* Any device connecting to the **`NetVoid`** access point will be redirected to the chat page.
+  If not automatically redirected, open the IP address shown on the Flipper screen (e.g., **`AP IP: 192.168.4.1`**)
+* Users can begin chatting immediately
+* The Flipper Zero displays all chat messages in real time
+
+![Chat in Action](images/example-image3.png)
 
 ---
 
 ## 🌐 How It Works
 
-- ESP32 hosts a captive portal using WebSocket for real-time messaging.
-- Devices connect via Wi-Fi and are served the `chat.html` from the Flipper Zero.
-- All communication remains local and offline.
-- The Flipper Zero displays chat history between all connected users.
+* The ESP32 runs a captive portal using WebSocket for real-time messaging
+* Devices connect over Wi-Fi and are served the **`chat.html`** page from the Flipper SD card
+* All communication is fully local and offline
+* The Flipper Zero displays chat history between all connected devices
