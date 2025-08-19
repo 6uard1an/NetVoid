@@ -1,25 +1,34 @@
-#include "ESPAsyncWebServer.h"
-#include <AsyncTCP.h>
-#include <DNSServer.h>
 #include <WiFi.h>
+#include <DNSServer.h>
 #include <deque>
-#include <stdlib.h>
 #include <set>
+#include <stdlib.h>
 
+// Async TCP + WebServer
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+
+// -------------------------
+// CONFIG
+// -------------------------
 #define MAX_HTML_SIZE 20000
 #define B_PIN 4
 #define G_PIN 5
-#define R_PIN 6
+#define R_PIN 2
+
 #define WAITING 0
 #define GOOD 1
 #define BAD 2
-#define SET_HTML_CMD "sethtml="
-#define SET_AP_CMD "setap="
-#define RESET_CMD "reset"
-#define START_CMD "start"
-#define ACK_CMD "ack"
 
+#define SET_HTML_CMD "sethtml="
+#define SET_AP_CMD   "setap="
+#define RESET_CMD    "reset"
+#define START_CMD    "start"
+#define ACK_CMD      "ack"
+
+// -------------------------
 // GLOBALS
+// -------------------------
 DNSServer dnsServer;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
@@ -36,7 +45,6 @@ char index_html[MAX_HTML_SIZE] = "TEST";
 
 // message history
 std::deque<String> messageLog;
-//set message history to 50 by default, you can change it here: (how many messages the server backs up)
 const size_t maxMessages = 50;
 
 // RESET
@@ -45,7 +53,9 @@ void (*resetFunction)(void) = 0;
 // Track connected clients by IP to limit "client connected" messages
 std::set<uint32_t> connectedClients;
 
-// AP FUNCTIONS
+// -------------------------
+// Captive Portal Handler
+// -------------------------
 class CaptiveRequestHandler : public AsyncWebHandler {
 public:
   CaptiveRequestHandler() {}
@@ -58,41 +68,54 @@ public:
   }
 };
 
+// -------------------------
+// LED status
+// -------------------------
 void setLed(int i) {
   digitalWrite(B_PIN, i == WAITING ? LOW : HIGH);
-  digitalWrite(G_PIN, i == GOOD ? LOW : HIGH);
-  digitalWrite(R_PIN, i == BAD ? LOW : HIGH);
+  digitalWrite(G_PIN, i == GOOD    ? LOW : HIGH);
+  digitalWrite(R_PIN, i == BAD     ? LOW : HIGH);
 }
 
+// -------------------------
+// WebSocket Event Handler
+// -------------------------
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
                AwsEventType type, void *arg, uint8_t *data, size_t len) {
   if (type == WS_EVT_CONNECT) {
+    // Send backlog to new client
     for (String msg : messageLog) {
       client->text(msg);
     }
   }
 
   if (type == WS_EVT_DATA) {
-    String msg = String((char*)data);
-    int u1 = msg.indexOf("\"username\":\"") + 12;
-    int u2 = msg.indexOf("\"", u1);
-    int m1 = msg.indexOf("\"message\":\"") + 11;
-    int m2 = msg.indexOf("\"", m1);
-    String username = msg.substring(u1, u2);
-    String message = msg.substring(m1, m2);
+    AwsFrameInfo *info = (AwsFrameInfo*)arg;
+    if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+      String msg = String((char*)data, len);
 
-    Serial.println(username + ":" + message);  // Keep this plain
+      int u1 = msg.indexOf("\"username\":\"") + 12;
+      int u2 = msg.indexOf("\"", u1);
+      int m1 = msg.indexOf("\"message\":\"") + 11;
+      int m2 = msg.indexOf("\"", m1);
 
-    String fullMsg = "{\"username\":\"" + username + "\",\"message\":\"" + message + "\"}";  // For storage
-    messageLog.push_back(fullMsg);
-    if (messageLog.size() > maxMessages) messageLog.pop_front();
+      String username = msg.substring(u1, u2);
+      String message  = msg.substring(m1, m2);
 
-    for (AsyncWebSocketClient &c : ws.getClients()) {
-      c.text(fullMsg);
+      Serial.println(username + ":" + message);  // Debug log
+
+      String fullMsg = "{\"username\":\"" + username + "\",\"message\":\"" + message + "\"}";
+      messageLog.push_back(fullMsg);
+      if (messageLog.size() > maxMessages) messageLog.pop_front();
+
+      ws.textAll(fullMsg);
     }
   }
 }
 
+// -------------------------
+// Server Setup
+// -------------------------
 void setupServer() {
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
@@ -102,7 +125,6 @@ void setupServer() {
     if (connectedClients.find(ip) == connectedClients.end()) {
       connectedClients.insert(ip);
       Serial.println(String(ip) + " connected");
-
     }
     request->send_P(200, "text/html", index_html);
   });
@@ -118,12 +140,15 @@ void setupServer() {
       "<html><head><script>setTimeout(() => { window.location.href ='/' }, 100);</script></head><body></body></html>");
   });
 
-  // Redirect all unknown requests to AP IP
+  // Redirect unknown requests to AP IP
   server.onNotFound([](AsyncWebServerRequest *request) {
     request->redirect("http://" + WiFi.softAPIP().toString());
   });
 }
 
+// -------------------------
+// AP Setup
+// -------------------------
 void startAP() {
   WiFi.mode(WIFI_AP);
   if (password.length() > 0) {
@@ -131,6 +156,7 @@ void startAP() {
   } else {
     WiFi.softAP(apName, nullptr, 1, 0, 255);
   }
+
   Serial.print("AP ip: ");
   Serial.println(WiFi.softAPIP());
   Serial.print("AP name: ");
@@ -145,7 +171,10 @@ void startAP() {
   server.begin();
 }
 
-bool checkForCommand(char *command) {
+// -------------------------
+// Serial Commands
+// -------------------------
+bool checkForCommand(const char *command) {
   if (Serial.available() > 0) {
     String msg = Serial.readString();
     return strncmp(msg.c_str(), command, strlen(command)) == 0;
@@ -170,8 +199,6 @@ void getInitInput() {
         ptr += strlen(SET_AP_CMD);
         String apData = String(ptr);
         apData.trim();
-        //seperates the AP name from the AP password (from the Set AP name option on flipper)
-        //e.g. Set AP name to "AP_NAME_HERE;AP_PASSWORD_HERE" <-- the `;` symbol seperates the name/password
         int sep = apData.indexOf(';');
         if (sep != -1) {
           String name = apData.substring(0, sep);
@@ -190,6 +217,9 @@ void getInitInput() {
   }
 }
 
+// -------------------------
+// Main
+// -------------------------
 void startPortal() {
   startAP();
   runServer = true;
@@ -202,6 +232,13 @@ void setup() {
 
   setLed(WAITING);
   Serial.begin(115200);
+  delay(500);
+
+  Serial.printf("Chip: %s, revision %d, cores %d\n",
+                ESP.getChipModel(),
+                ESP.getChipRevision(),
+                ESP.getChipCores());
+
   getInitInput();
   setLed(GOOD);
   startPortal();
