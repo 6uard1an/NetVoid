@@ -123,6 +123,7 @@ esp32-proxy/
 │   ├── esp_proxy.c          Whole app: ViewDispatcher, all screens, protocol client
 │   ├── uart.c / uart.h      GPIO USART link + the serial-monitor capture buffer
 │   ├── espflash.c / .h      Flash the ESP32 over UART (esptool ROM protocol)
+│   ├── firmware/            Bundled ESP32 bins (fap_file_assets) — written by build.py
 │   └── icon.png             10×10 1-bit app icon
 │
 └── sd-browser/index.html    The "Browser" app page written onto the SD card (address bar + Wi-Fi/MAC UI)
@@ -446,9 +447,13 @@ implementation of the public **esptool serial protocol** (SLIP framing + `SYNC` 
 `FLASH_BEGIN` / `FLASH_DATA` / `FLASH_END`) running the ESP32's **ROM bootloader** in uncompressed
 mode (no stub).
 
-- **Images** come from the Flipper SD card at `apps_data/esp_proxy/firmware/`, listed in `flash.txt`
-  as `<hex offset> <filename>` lines. `build.py` produces this folder: `bootloader.bin` @ `0x1000`,
-  `partitions.bin` @ `0x8000`, `boot_app0.bin` @ `0xe000`, `app.bin` @ `0x10000`.
+- **Images are bundled inside the `.fap`.** `application.fam` sets `fap_file_assets="firmware"`, so
+  the four bins + `flash.txt` in `flipper/esp_proxy/firmware/` are packed into the `.fap` and deployed
+  on install to the app's asset store, reachable at `/assets` (`FW_DIR`). `flash.txt` lists
+  `<hex offset> <filename>`: `bootloader.bin` @ `0x1000`, `partitions.bin` @ `0x8000`, `boot_app0.bin`
+  @ `0xe000`, `app.bin` @ `0x10000`. `build.py` regenerates the folder; rebuild the app to re-pack it.
+  (The firmware can't live in RAM — a `.fap` loads into the Flipper's 256 KB — so it rides in the
+  `.fap` file on the SD and unpacks to `/assets`; only the app code loads to RAM.)
 - **Download mode** is entered manually (hold BOOT, tap RESET) — no EN/IO0 auto-reset wiring is
   required, so it works on boards that only expose BOOT/RESET as buttons (e.g. the FlipMods Mini).
 - **Flow:** `esp_flash_run()` flushes the UART, `SYNC`s with the ROM, sends a best-effort

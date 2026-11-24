@@ -73,15 +73,16 @@ run([HW / "tools/gen_esp32part.exe", "-q", HW / "tools/partitions/default_8MB.cs
 print(run([BIN / "xtensa-esp32-elf-size.exe", elf]))
 print("image", (OUT / "proxy.bin").stat().st_size, "bytes")
 
-# Bundle the four images for flashing from the Flipper (NetVoid app reads flash.txt off the SD card).
+# Bundle the four images into the NetVoid app's assets dir; the .fap packs them (fap_file_assets)
+# and deploys them to /assets on install, so the firmware ships inside the app (no manual SD copy).
 import shutil
-FW = HERE / "firmware"
-FW.mkdir(exist_ok=True)
+FW = HERE / "flipper/esp_proxy/firmware"
+FW.mkdir(parents=True, exist_ok=True)
 bundle = [("0x1000", OUT / "boot.bin", "bootloader.bin"), ("0x8000", OUT / "parts.bin", "partitions.bin"),
           ("0xe000", HW / "tools/partitions/boot_app0.bin", "boot_app0.bin"), ("0x10000", OUT / "proxy.bin", "app.bin")]
 for off, srcp, nm in bundle: shutil.copy(srcp, FW / nm)
 (FW / "flash.txt").write_text("".join(f"{off} {nm}\n" for off, _, nm in bundle), newline="\n")
-print("firmware bundle ->", FW, "(copy this folder to the Flipper SD: apps_data/esp_proxy/firmware)")
+print("firmware bundled into the app ->", FW, "(rebuild the Flipper app to pack it)")
 port = next((x for x in sys.argv[1:] if x.startswith("COM")), None)
 if port:
     print(run([ESPTOOL, "--chip", "esp32", "--port", port, "--baud", "115200", "write-flash", "-z", *img, "0x1000", OUT / "boot.bin",

@@ -15,7 +15,7 @@
 
 #define LOG_CAP 8192 // RAM ring for the live monitor (newest ~8KB kept)
 #define LOG_DIR EXT_PATH("apps_data/esp_proxy")
-#define FW_DIR EXT_PATH("apps_data/esp_proxy/firmware")
+#define FW_DIR "/assets" // firmware bins bundled in the .fap (fap_file_assets), deployed here on install
 
 typedef enum {
     ViewMenu,
@@ -660,7 +660,7 @@ static void flash_cb(void* ctx, uint32_t index) {
         popup_msg(
             a,
             "How to flash",
-            "PC: build.py makes\nfirmware/ -> copy to\nSD apps_data/esp_proxy\nHold BOOT, tap RESET");
+            "Firmware is bundled.\nHold BOOT, tap RESET\non the board, then\nStart flashing.");
         return;
     }
     // FlStart: the ESP32 must already be in download mode (BOOT held, RESET tapped).

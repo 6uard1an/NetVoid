@@ -135,20 +135,25 @@ From the app you can:
 
 ## Flashing from the Flipper
 
-Once NetVoid is installed, you can re-flash the ESP32 from the Flipper with **no PC**:
+**The firmware is bundled inside the NetVoid app** — the `.fap` packs the bootloader, partition
+table, boot_app0 and app, and deploys them to the Flipper automatically on install. Nothing to copy
+to the SD by hand. So once NetVoid is installed you can re-flash the ESP32 with **no PC**:
 
-1. **On the PC**, run `python build.py`. It writes a `firmware/` folder (bootloader, partitions,
-   boot_app0, app, and `flash.txt`).
-2. **Copy that `firmware/` folder to the Flipper's SD card** at `apps_data/esp_proxy/firmware/`
-   (e.g. with qFlipper). You only re-copy it when the firmware changes.
-3. Put the ESP32 in **download mode**: **hold BOOT, tap RESET, release BOOT.**
-4. In NetVoid: **Flash ESP32 → Start flashing.** A progress screen shows each image as it writes.
-5. It flashes over the same 115200 UART (~2–3 min). On success, **tap RESET** to run the new firmware.
+1. Put the ESP32 in **download mode**: **hold BOOT, tap RESET, release BOOT.**
+2. In NetVoid: **Flash ESP32 → Start flashing.** A progress screen shows each image as it writes.
+3. It flashes over the same 115200 UART (~2–3 min). On success, **tap RESET** to run the new firmware.
+
+To ship a **new** firmware version with the app, on the PC run `python build.py` (it refreshes the
+bins in `flipper/esp_proxy/firmware/`) and rebuild/reinstall the app (`python -m ufbt launch`); the
+new firmware is packed into the `.fap`.
 
 > **Currently tested on the [FlipMods Mini](https://sacredlabstech.com/boards/mini/).** NetVoid talks
-> to the ESP32's ROM bootloader over UART (no auto-reset wiring needed) — any board works as long as
-> you can reach its BOOT/RESET buttons and its UART is on the Flipper's pins 13/14. If it can't
-> connect, re-enter download mode (hold BOOT, tap RESET) and start again.
+> to the ESP32's ROM bootloader over UART (no auto-reset wiring needed) — any ESP32-WROOM board works
+> as long as you can reach its BOOT/RESET buttons and its UART is on the Flipper's pins 13/14. If it
+> can't connect, re-enter download mode (hold BOOT, tap RESET) and start again.
+>
+> This bundles ~1.3 MB into the `.fap`. (Even ESP Flasher can't hold the firmware in RAM — it reads
+> the bins off the SD card. NetVoid instead ships them inside the app and auto-deploys them.)
 
 ## Good to know
 
