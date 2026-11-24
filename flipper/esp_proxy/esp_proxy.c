@@ -70,6 +70,7 @@ typedef struct {
     bool logging;
     char logpath[128];
     FuriTimer* timer;
+    char flash_text[96]; // persistent: popup_set_text keeps the pointer, not a copy
 
     ViewId view;
     ListMode mode;
@@ -646,18 +647,18 @@ enum { FlStart, FlHelp };
 
 static void flash_progress(void* ctx, const char* stage, uint32_t cur, uint32_t total, int idx, int count) {
     App* a = ctx;
-    char t[96];
     if(total) {
         uint32_t pct = cur * 100 / total;
         char bar[11];
         int fill = (int)(pct / 10);
         for(int i = 0; i < 10; i++) bar[i] = i < fill ? '#' : '-';
         bar[10] = 0;
-        snprintf(t, sizeof(t), "%s (%d/%d)\n[%s] %lu%%", stage, idx, count, bar, (unsigned long)pct);
+        snprintf(a->flash_text, sizeof(a->flash_text), "%s (%d/%d)\n[%s] %lu%%", stage, idx, count, bar, (unsigned long)pct);
     } else {
-        snprintf(t, sizeof(t), "%s...", stage);
+        snprintf(a->flash_text, sizeof(a->flash_text), "%s...", stage);
     }
-    popup_set_text(a->popup, t, 64, 34, AlignCenter, AlignCenter); // redraws on the GUI thread
+    // a->flash_text persists, so the GUI thread can read it when it redraws.
+    popup_set_text(a->popup, a->flash_text, 64, 34, AlignCenter, AlignCenter);
 }
 
 static void flash_cb(void* ctx, uint32_t index) {
@@ -677,7 +678,8 @@ static void flash_cb(void* ctx, uint32_t index) {
     go(a, ViewPopup);
     char err[96] = "";
     bool ok = esp_flash_run(a->uart, a->storage, FW_DIR, flash_progress, a, err, sizeof(err));
-    popup_msg(a, ok ? "Flash complete" : "Flash failed", ok ? "Tap RESET to run" : err);
+    strlcpy(a->flash_text, ok ? "Tap RESET to run" : err, sizeof(a->flash_text));
+    popup_msg(a, ok ? "Flash complete" : "Flash failed", a->flash_text);
 }
 
 static void scene_flash(App* a) {
