@@ -644,14 +644,20 @@ static void scene_files(App* a) {
 
 enum { FlStart, FlHelp };
 
-static void flash_progress(void* ctx, const char* stage, uint32_t cur, uint32_t total) {
+static void flash_progress(void* ctx, const char* stage, uint32_t cur, uint32_t total, int idx, int count) {
     App* a = ctx;
-    char t[64];
-    if(total)
-        snprintf(t, sizeof(t), "%s\n%lu%%", stage, (unsigned long)(cur * 100 / total));
-    else
+    char t[96];
+    if(total) {
+        uint32_t pct = cur * 100 / total;
+        char bar[11];
+        int fill = (int)(pct / 10);
+        for(int i = 0; i < 10; i++) bar[i] = i < fill ? '#' : '-';
+        bar[10] = 0;
+        snprintf(t, sizeof(t), "%s (%d/%d)\n[%s] %lu%%", stage, idx, count, bar, (unsigned long)pct);
+    } else {
         snprintf(t, sizeof(t), "%s...", stage);
-    popup_set_text(a->popup, t, 64, 36, AlignCenter, AlignCenter); // redraws on the GUI thread
+    }
+    popup_set_text(a->popup, t, 64, 34, AlignCenter, AlignCenter); // redraws on the GUI thread
 }
 
 static void flash_cb(void* ctx, uint32_t index) {

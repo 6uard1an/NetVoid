@@ -6,8 +6,15 @@
 #include <storage/storage.h>
 #include "uart.h"
 
-// Progress UI hook: a short stage label plus current/total blocks (total 0 = indeterminate).
-typedef void (*EspFlashProgress)(void* ctx, const char* stage, uint32_t cur, uint32_t total);
+// Progress UI hook: a stage label (filename), current/total blocks in this file (total 0 =
+// indeterminate), and which file this is of how many (idx/count, both 0 before flashing starts).
+typedef void (*EspFlashProgress)(
+    void* ctx,
+    const char* stage,
+    uint32_t cur,
+    uint32_t total,
+    int idx,
+    int count);
 
 // Flash every image in <dir>/flash.txt. Returns true on success; on failure fills err.
 bool esp_flash_run(

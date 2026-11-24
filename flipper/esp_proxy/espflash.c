@@ -162,6 +162,8 @@ static bool flash_file(
     const char* label,
     uint8_t* block,
     uint8_t* pkt,
+    int idx,
+    int count,
     EspFlashProgress cb,
     void* ctx,
     char* err,
@@ -207,7 +209,7 @@ static bool flash_file(
             ok = false;
             break;
         }
-        if((seq & 3) == 0 || seq == nblocks - 1) cb(ctx, label, seq + 1, nblocks);
+        if((seq & 3) == 0 || seq == nblocks - 1) cb(ctx, label, seq + 1, nblocks, idx, count);
     }
     storage_file_close(f);
     storage_file_free(f);
@@ -236,7 +238,7 @@ bool esp_flash_run(
     storage_file_close(mf);
     storage_file_free(mf);
 
-    cb(ctx, "Connecting", 0, 0);
+    cb(ctx, "Connecting", 0, 0, 0, 0);
     uart_flush(uart);
     if(!sync_rom(uart)) {
         snprintf(err, err_sz, "No bootloader. Hold BOOT, tap RESET.");
@@ -254,9 +256,12 @@ bool esp_flash_run(
         return false;
     }
 
-    bool ok = true;
+    // Parse the manifest into entries first so we know the total file count for progress.
+    uint32_t offs[8];
+    char names[8][64];
+    int count = 0;
     char* p = man;
-    while(*p && ok) {
+    while(*p && count < 8) {
         while(*p == ' ' || *p == '\r' || *p == '\n' || *p == '\t') p++;
         if(!*p) break;
         if(p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) p += 2;
@@ -267,16 +272,21 @@ bool esp_flash_run(
             p++;
         }
         while(*p == ' ' || *p == '\t') p++;
-        char fname[128];
         int fi = 0;
-        while(*p && *p != '\r' && *p != '\n' && fi < (int)sizeof(fname) - 1) fname[fi++] = *p++;
-        fname[fi] = 0;
+        while(*p && *p != '\r' && *p != '\n' && fi < (int)sizeof(names[0]) - 1) names[count][fi++] = *p++;
+        names[count][fi] = 0;
         if(fi > 0) {
-            char fpath[300];
-            snprintf(fpath, sizeof(fpath), "%s/%s", dir, fname);
-            ok = flash_file(uart, storage, fpath, off, fname, block, pkt, cb, ctx, err, err_sz);
+            offs[count] = off;
+            count++;
         }
         while(*p && *p != '\n') p++;
+    }
+
+    bool ok = true;
+    for(int i = 0; i < count && ok; i++) {
+        char fpath[300];
+        snprintf(fpath, sizeof(fpath), "%s/%s", dir, names[i]);
+        ok = flash_file(uart, storage, fpath, offs[i], names[i], block, pkt, i + 1, count, cb, ctx, err, err_sz);
     }
 
     free(block);
