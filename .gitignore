@@ -1,0 +1,10 @@
+# Local flash backups (binary, not part of source)
+backup/
+
+# Flipper app build output
+flipper/esp_proxy/dist/
+flipper/esp_proxy/.vscode/
+
+# Python / build caches
+__pycache__/
+*.pyc

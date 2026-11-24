@@ -1,0 +1,10 @@
+App(
+    appid="esp_proxy",
+    name="NetVoid",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="esp_proxy_app",
+    stack_size=4 * 1024,
+    fap_category="GPIO",
+    fap_icon="icon.png",
+    fap_description="NetVoid: ESP32 game server + web proxy control panel",
+)

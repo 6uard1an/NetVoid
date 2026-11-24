@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Browser</title>
+<style>
+:root{--bg:#0d0f12;--card:#16191f;--line:#2a2f38;--fg:#eef1f5;--dim:#9aa3af;--blue:#2f7ef5;--red:#e5484d;--green:#2fbf71}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,sans-serif}
+body{max-width:640px;margin:0 auto;padding:12px 14px 40px;padding-top:max(12px,env(safe-area-inset-top))}
+h1{font-size:15px;color:var(--dim);font-weight:600;margin:22px 2px 8px;letter-spacing:.02em;text-transform:uppercase}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:0 0 10px}
+input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:#0b0d10;color:var(--fg);font:inherit}
+input:focus{outline:none;border-color:var(--blue)}
+button{font:inherit;font-weight:600;padding:11px 14px;border:0;border-radius:10px;background:var(--blue);color:#fff;cursor:pointer}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+button:active{transform:translateY(1px)}button:disabled{opacity:.5}
+.row{display:flex;gap:8px}.row>input{flex:1}
+a{color:var(--blue);text-decoration:none}
+small{color:var(--dim)}
+#addr{display:flex;gap:8px;position:sticky;top:0;z-index:5;background:var(--bg);padding:6px 0 10px}
+#addr input{flex:1}
+.net{display:flex;align-items:center;gap:12px;padding:11px 6px;border-top:1px solid var(--line);cursor:pointer}
+.net:first-child{border-top:0}
+.net .name{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.net .tag{font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-left:6px}
+.bars{display:inline-flex;align-items:flex-end;gap:2px;height:16px;width:20px}
+.bars i{width:3px;background:var(--line);border-radius:1px}
+.bars i.on{background:var(--green)}
+.lock{width:14px;height:14px;opacity:.75}
+.expand{padding:4px 6px 12px;display:none}
+.expand.open{display:block}
+#status{display:flex;align-items:center;gap:10px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--red);flex:none}
+.dot.on{background:var(--green)}
+.msg{margin:8px 2px 0;font-size:14px;min-height:18px}
+.err{color:var(--red)}.ok{color:var(--green)}
+details summary{cursor:pointer;color:var(--dim);font-size:15px;font-weight:600;padding:4px 2px;list-style:none}
+details summary::-webkit-details-marker{display:none}
+.mac{font-family:ui-monospace,Menlo,Consolas,monospace}
+</style>
+</head>
+<body>
+
+<form id="addr" onsubmit="go();return false">
+<input id="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Search or type a web address" aria-label="Address">
+<button type="submit">Go</button>
+</form>
+
+<div id="status" class="card">
+<span class="dot" id="dot"></span>
+<div style="flex:1"><div id="stext">Checking…</div><small id="ssub"></small></div>
+<button class="ghost" onclick="scan()">Wi‑Fi</button>
+</div>
+
+<div id="wifi" style="display:none">
+<h1>Nearby Wi‑Fi</h1>
+<div class="card"><div id="list"><small>Scanning…</small></div></div>
+<div class="msg" id="wmsg"></div>
+</div>
+
+<h1>Device</h1>
+<div class="card">
+<details id="adv">
+<summary>MAC address &amp; advanced</summary>
+<p><small>The ESP32 shows this MAC to your home router. If your router only allows whitelisted devices, set one it accepts.</small></p>
+<div style="margin:8px 0"><small>Current:</small> <span class="mac" id="curmac">…</span> <span class="tag" id="mactype"></span></div>
+<div class="row"><input id="macin" class="mac" placeholder="AA:BB:CC:DD:EE:FF" maxlength="17" autocapitalize="characters"><button onclick="setmac(macin.value)">Apply</button></div>
+<div class="row" style="margin-top:8px"><button class="ghost" style="flex:1" onclick="setmac('random')">Random</button><button class="ghost" style="flex:1" onclick="setmac('default')">Factory default</button></div>
+<div class="msg" id="mmsg"></div>
+<p style="margin-top:14px"><small>Changing the MAC or Wi‑Fi briefly drops the internet while the ESP32 reconnects. This screen stays up.</small></p>
+</details>
+</div>
+
+<p style="text-align:center;margin-top:22px"><a href="/">← All apps</a></p>
+
+<script>
+// Run full screen, outside the menu's iframe, so proxied sites get their own cookies and storage.
+if (window.top !== window.self) { try { top.location.replace(location.href); } catch (e) {} }
+
+var $ = function (id) { return document.getElementById(id); };
+function api(path, opt) { return fetch(path, Object.assign({ cache: 'no-store' }, opt)).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }); }
+function form(o) { return Object.keys(o).map(function (k) { return k + '=' + encodeURIComponent(o[k]); }).join('&'); }
+function post(path, o) { return api(path, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form(o) }); }
+
+// ---- address bar ----
+function go() {
+  var v = $('url').value.trim(); if (!v) return;
+  if (!/^https?:\/\//i.test(v)) {
+    if (/\s/.test(v) || !/^[^\/]+\.[^\/]+/.test(v)) v = 'https://duckduckgo.com/?q=' + encodeURIComponent(v);
+    else v = 'https://' + v;
+  }
+  var x; try { x = new URL(v); } catch (e) { alert('That address is not valid'); return; }
+  var sec = x.protocol === 'https:', h = x.hostname;
+  if (h.slice(-6) !== '.esp32') h += (sec ? (x.port ? '.p' + x.port : '') : '.h' + x.port) + '.esp32';
+  location.href = 'http://' + h + x.pathname + x.search + x.hash;
+}
+
+// ---- status ----
+function refresh() {
+  return api('/api/status').then(function (s) {
+    var j = s.j;
+    $('dot').className = 'dot' + (j.connected ? ' on' : '');
+    $('stext').textContent = j.connected ? 'Online — ' + (j.ssid || 'connected') : (j.ssid ? 'Connecting to ' + j.ssid + '…' : 'No home Wi‑Fi set');
+    $('ssub').textContent = j.connected ? (j.ip + '  ·  ' + j.rssi + ' dBm') : 'Pick a network below to give the proxy internet';
+    $('curmac').textContent = j.mac;
+    $('mactype').textContent = j.custom_mac ? 'custom' : 'default';
+    return j;
+  }).catch(function () { $('stext').textContent = 'ESP32 not responding'; });
+}
+
+// ---- wifi scan ----
+function bars(n) { var s = '<span class="bars">'; for (var i = 0; i < 4; i++) s += '<i class="' + (i < n ? 'on' : '') + '" style="height:' + (5 + i * 3) + 'px"></i>'; return s + '</span>'; }
+var LOCK = '<svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+function esc(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+function scan() {
+  $('wifi').style.display = '';
+  $('list').innerHTML = '<small>Scanning…</small>';
+  $('wmsg').textContent = '';
+  api('/api/scan').then(function (s) {
+    var nets = s.j || [];
+    var seen = {}, out = [];
+    nets.sort(function (a, b) { return b.rssi - a.rssi; }).forEach(function (n) { if (!seen[n.ssid]) { seen[n.ssid] = 1; out.push(n); } });
+    if (!out.length) { $('list').innerHTML = '<small>No networks found. Tap Wi‑Fi to scan again.</small>'; return; }
+    $('list').innerHTML = out.map(function (n, i) {
+      return '<div class="net" onclick="pick(' + i + ')">' + bars(n.bars) +
+        '<span class="name">' + esc(n.ssid) + (n.saved ? '<span class="tag">saved</span>' : '') + '</span>' +
+        (n.open ? '' : LOCK) + '</div><div class="expand" id="x' + i + '"></div>';
+    }).join('');
+    window._nets = out;
+  }).catch(function () { $('list').innerHTML = '<small class="err">Scan failed. Try again.</small>'; });
+}
+
+function pick(i) {
+  var n = window._nets[i], box = $('x' + i);
+  document.querySelectorAll('.expand.open').forEach(function (e) { if (e !== box) e.className = 'expand'; });
+  if (box.className.indexOf('open') >= 0) { box.className = 'expand'; return; }
+  box.className = 'expand open';
+  if (n.open) { box.innerHTML = '<button onclick="connect(' + i + ')">Connect to ' + esc(n.ssid) + '</button>'; }
+  else box.innerHTML = '<div class="row"><input id="pw' + i + '" type="password" placeholder="Password for ' + esc(n.ssid) + '"><button onclick="connect(' + i + ')">Connect</button></div>';
+}
+
+function connect(i) {
+  var n = window._nets[i], pwEl = $('pw' + i), pw = pwEl ? pwEl.value : '';
+  $('wmsg').className = 'msg'; $('wmsg').textContent = 'Connecting to ' + n.ssid + '…';
+  post('/api/connect', { ssid: n.ssid, password: pw }).then(function (s) {
+    if (!s.ok) { $('wmsg').className = 'msg err'; $('wmsg').textContent = s.j.error || 'Could not start connecting.'; return; }
+    var tries = 0, t = setInterval(function () {
+      refresh().then(function (j) {
+        if (j && j.connected && j.ssid === n.ssid) { clearInterval(t); $('wmsg').className = 'msg ok'; $('wmsg').textContent = 'Connected to ' + n.ssid + '.'; }
+        else if (++tries > 12) { clearInterval(t); $('wmsg').className = 'msg err'; $('wmsg').textContent = 'Still not connected — check the password and try again.'; }
+      });
+    }, 1500);
+  });
+}
+
+// ---- mac ----
+function setmac(v) {
+  $('mmsg').className = 'msg'; $('mmsg').textContent = 'Applying…';
+  post('/api/mac', { mac: v }).then(function (s) {
+    if (s.ok) { $('mmsg').className = 'msg ok'; $('mmsg').textContent = 'MAC is now ' + s.j.mac + '. Reconnecting…'; $('macin').value = ''; setTimeout(refresh, 2500); }
+    else { $('mmsg').className = 'msg err'; $('mmsg').textContent = s.j.error || 'Could not set that MAC.'; }
+  });
+}
+
+refresh();
+</script>
+</body>
+</html>
