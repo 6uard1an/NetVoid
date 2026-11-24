@@ -56,13 +56,17 @@ sign-in / captive page** — and that page is a full web browser.
 
 ## What you need
 
-- An **ESP32** board (plain ESP32 / WROOM, no PSRAM required).
-  **Recommended:** the [**FlipMods Mini** by Sacred Labs](https://sacredlabstech.com/boards/mini/) —
-  an ESP32‑WROOM‑32UE board that plugs straight onto the Flipper Zero's GPIO header **and** has an
-  onboard **microSD slot** for your HTML/game files. It's been tested and verified to run NetVoid, so
-  it gives you the ESP32, the SD storage, and the Flipper connection in a single board with no wiring.
-  Its USB‑C port flashes the firmware directly (this overwrites the Marauder firmware it ships with).
-  Any plain ESP32 with a microSD card wired to it also works.
+- An **ESP32 board**. Two are supported out of the box (NetVoid bundles firmware for both):
+  - **[FlipMods Mini](https://sacredlabstech.com/boards/mini/) (ESP32‑WROOM)** — recommended. Plugs
+    onto the Flipper's GPIO header **and** has an onboard **microSD slot**, so you get the ESP32, SD
+    storage (games/apps, file editing, logs), and the Flipper link in one board. Runs the **full**
+    firmware (proxy **+** SD server).
+  - **Official [Flipper Zero WiFi Devboard](https://shop.flipperzero.one/products/wifi-devboard)
+    (ESP32‑S2)** — no SD slot, so it runs a **proxy‑only** build (no file editing or SD logs). The app
+    hides those options automatically when it sees a board with no SD.
+
+  Any plain ESP32 with a microSD wired to it also works. Flash either board over USB for the first
+  time, then re‑flash from the Flipper (the app has a board picker).
 - A **microSD card** for the SD server (**≤ 32 GB, formatted FAT32**; insert it before powering the
   board). Only needed to serve local games/apps and a default home page.
 - A **Flipper Zero** (optional — only for the NetVoid control app; the firmware works standalone).
@@ -140,12 +144,14 @@ table, boot_app0 and app, and deploys them to the Flipper automatically on insta
 to the SD by hand. So once NetVoid is installed you can re-flash the ESP32 with **no PC**:
 
 1. Put the ESP32 in **download mode**: **hold BOOT, tap RESET, release BOOT.**
-2. In NetVoid: **Flash ESP32 → Start flashing.** A progress screen shows each image as it writes.
+2. In NetVoid: **Flash ESP32**, then pick your board — **FlipMods Mini (ESP32)** or **WiFi Devboard
+   (ESP32‑S2)**. A progress screen shows each image (`1/4 → 4/4`) as it writes.
 3. It flashes over the same 115200 UART (~2–3 min). On success, **tap RESET** to run the new firmware.
 
-To ship a **new** firmware version with the app, on the PC run `python build.py` (it refreshes the
-bins in `flipper/esp_proxy/firmware/`) and rebuild/reinstall the app (`python -m ufbt launch`); the
-new firmware is packed into the `.fap`.
+To refresh the bundled firmware on the PC: `python build.py` (Mini / classic ESP32) and
+`python build.py --s2 --no-sd` (Devboard / ESP32‑S2 proxy‑only) write the bins into
+`flipper/esp_proxy/firmware/mini/` and `.../devboard/`; rebuild the app (`python -m ufbt launch`) to
+pack them into the `.fap`.
 
 > **Currently tested on the [FlipMods Mini](https://sacredlabstech.com/boards/mini/).** NetVoid talks
 > to the ESP32's ROM bootloader over UART (no auto-reset wiring needed) — any ESP32-WROOM board works

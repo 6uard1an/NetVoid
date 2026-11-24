@@ -15,7 +15,9 @@
 
 #define LOG_CAP 8192 // RAM ring for the live monitor (newest ~8KB kept)
 #define LOG_DIR EXT_PATH("apps_data/esp_proxy")
-#define FW_DIR "/assets" // firmware bins bundled in the .fap (fap_file_assets), deployed here on install
+// Firmware bins are bundled in the .fap (fap_file_assets) and deployed to /assets on install.
+#define FW_MINI "/assets/mini" // classic ESP32 full firmware (FlipMods Mini)
+#define FW_DEVBOARD "/assets/devboard" // ESP32-S2 proxy-only (Wi-Fi Devboard, no SD)
 
 typedef enum {
     ViewMenu,
@@ -71,6 +73,7 @@ typedef struct {
     char logpath[128];
     FuriTimer* timer;
     char flash_text[96]; // persistent: popup_set_text keeps the pointer, not a copy
+    bool has_sd; // board reports an SD card (hide file/log options when false)
 
     ViewId view;
     ListMode mode;
@@ -643,7 +646,7 @@ static void scene_files(App* a) {
 
 // ---------------- flash ESP32 ----------------
 
-enum { FlStart, FlHelp };
+enum { FlMini, FlDevboard, FlHelp };
 
 static void flash_progress(void* ctx, const char* stage, uint32_t cur, uint32_t total, int idx, int count) {
     App* a = ctx;
@@ -661,32 +664,39 @@ static void flash_progress(void* ctx, const char* stage, uint32_t cur, uint32_t 
     popup_set_text(a->popup, a->flash_text, 64, 34, AlignCenter, AlignCenter);
 }
 
-static void flash_cb(void* ctx, uint32_t index) {
-    App* a = ctx;
-    if(index == FlHelp) {
-        popup_msg(
-            a,
-            "How to flash",
-            "Firmware is bundled.\nHold BOOT, tap RESET\non the board, then\nStart flashing.");
-        return;
-    }
-    // FlStart: the ESP32 must already be in download mode (BOOT held, RESET tapped).
+// The ESP32 must already be in download mode (hold BOOT, tap RESET) before this runs.
+static void do_flash(App* a, const char* dir) {
     popup_reset(a->popup);
     popup_set_header(a->popup, "Flashing ESP32", 64, 8, AlignCenter, AlignTop);
     popup_set_text(a->popup, "connecting...", 64, 36, AlignCenter, AlignCenter);
     a->popup_ret = RetMenu;
     go(a, ViewPopup);
     char err[96] = "";
-    bool ok = esp_flash_run(a->uart, a->storage, FW_DIR, flash_progress, a, err, sizeof(err));
+    bool ok = esp_flash_run(a->uart, a->storage, dir, flash_progress, a, err, sizeof(err));
     strlcpy(a->flash_text, ok ? "Tap RESET to run" : err, sizeof(a->flash_text));
     popup_msg(a, ok ? "Flash complete" : "Flash failed", a->flash_text);
+}
+
+static void flash_cb(void* ctx, uint32_t index) {
+    App* a = ctx;
+    switch(index) {
+    case FlMini: do_flash(a, FW_MINI); break;
+    case FlDevboard: do_flash(a, FW_DEVBOARD); break;
+    case FlHelp:
+        popup_msg(
+            a,
+            "How to flash",
+            "Firmware is bundled.\nHold BOOT, tap RESET\non the board, pick it,\nthen wait.");
+        break;
+    }
 }
 
 static void scene_flash(App* a) {
     a->mode = ModeFlash;
     submenu_reset(a->list);
-    submenu_set_header(a->list, "Flash ESP32 firmware");
-    submenu_add_item(a->list, "Start flashing", FlStart, flash_cb, a);
+    submenu_set_header(a->list, "Flash - pick board");
+    submenu_add_item(a->list, "FlipMods Mini (ESP32)", FlMini, flash_cb, a);
+    submenu_add_item(a->list, "WiFi Devboard (ESP32-S2)", FlDevboard, flash_cb, a);
     submenu_add_item(a->list, "How to (read first)", FlHelp, flash_cb, a);
     go(a, ViewList);
 }
@@ -725,15 +735,31 @@ static void menu_cb(void* ctx, uint32_t index) {
     }
 }
 
+// Quick one-shot "stat" to learn if the connected board has an SD card (bounded ~1.5s).
+// Defaults to true (show everything) if the board doesn't answer.
+static bool probe_sd(App* a) {
+    uart_flush(a->uart);
+    uart_send(a->uart, "stat");
+    char line[256];
+    uint32_t t0 = furi_get_tick();
+    while(furi_get_tick() - t0 < 1500) {
+        if(uart_read_line(a->uart, line, sizeof(line), 300) < 0) continue;
+        if(strcmp(line, "S.") == 0) break;
+        if(strncmp(line, "S sd ", 5) == 0) return line[5] == '1';
+    }
+    return true;
+}
+
 static void build_menu(App* a) {
     submenu_reset(a->menu);
     submenu_set_header(a->menu, "NetVoid");
     submenu_add_item(a->menu, "AP settings", MAp, menu_cb, a);
     submenu_add_item(a->menu, "Home Wi-Fi", MWifi, menu_cb, a);
-    submenu_add_item(a->menu, "Files", MFiles, menu_cb, a);
+    if(a->has_sd) submenu_add_item(a->menu, "Files", MFiles, menu_cb, a); // SD only
     submenu_add_item(a->menu, "Status", MStatus, menu_cb, a);
     submenu_add_item(a->menu, "Serial monitor", MSerial, menu_cb, a);
-    submenu_add_item(a->menu, a->logging ? "SD log: ON (stop)" : "SD log: OFF (start)", MSdlog, menu_cb, a);
+    if(a->has_sd) // SD logging writes to the Flipper SD, but it's an SD-board feature
+        submenu_add_item(a->menu, a->logging ? "SD log: ON (stop)" : "SD log: OFF (start)", MSdlog, menu_cb, a);
     submenu_add_item(a->menu, "Flash ESP32", MFlash, menu_cb, a);
     submenu_add_item(a->menu, "About", MAbout, menu_cb, a);
 }
@@ -804,6 +830,7 @@ static App* app_alloc(void) {
     a->timer = furi_timer_alloc(timer_cb, FuriTimerTypePeriodic, a);
     furi_timer_start(a->timer, furi_ms_to_ticks(150));
 
+    a->has_sd = probe_sd(a); // hide SD-only menu items on a board without a card
     build_menu(a);
     return a;
 }

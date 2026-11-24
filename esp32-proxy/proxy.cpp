@@ -1298,6 +1298,8 @@ void setup() {
   if (!gunzip.win) Serial.println("no window memory: pages will be fetched uncompressed");
 #ifdef SD_TEST
   hasSD = LittleFS.begin(true, SD_ROOT, 4, "spiffs");  // flash stands in for the card
+#elif defined(NO_SD)
+  hasSD = false;  // proxy-only build (e.g. the Wi-Fi Devboard has no SD): portal serves from flash
 #else
   hasSD = sdMount();
 #endif
