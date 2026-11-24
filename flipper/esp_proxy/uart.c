@@ -63,6 +63,12 @@ size_t uart_read_log(Uart* u, uint8_t* buf, size_t max) {
     return furi_stream_buffer_receive(u->log, buf, max, 0);
 }
 
+int uart_read_byte(Uart* u, uint32_t timeout_ms) {
+    uint8_t b;
+    if(furi_stream_buffer_receive(u->rx, &b, 1, timeout_ms) == 1) return b;
+    return -1;
+}
+
 int uart_read_line(Uart* u, char* buf, size_t buf_sz, uint32_t timeout_ms) {
     size_t n = 0;
     uint32_t start = furi_get_tick();

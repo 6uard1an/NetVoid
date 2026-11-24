@@ -11,9 +11,11 @@
 #include <storage/storage.h>
 #include <furi_hal_rtc.h>
 #include "uart.h"
+#include "espflash.h"
 
 #define LOG_CAP 8192 // RAM ring for the live monitor (newest ~8KB kept)
 #define LOG_DIR EXT_PATH("apps_data/esp_proxy")
+#define FW_DIR EXT_PATH("apps_data/esp_proxy/firmware")
 
 typedef enum {
     ViewMenu,
@@ -25,7 +27,7 @@ typedef enum {
     ViewMonitor, // live serial log
 } ViewId;
 
-typedef enum { ModeAp, ModeWifi, ModeFiles } ListMode;
+typedef enum { ModeAp, ModeWifi, ModeFiles, ModeFlash } ListMode;
 
 typedef enum {
     TxApName,
@@ -638,9 +640,52 @@ static void scene_files(App* a) {
     go(a, ViewList);
 }
 
+// ---------------- flash ESP32 ----------------
+
+enum { FlStart, FlHelp };
+
+static void flash_progress(void* ctx, const char* stage, uint32_t cur, uint32_t total) {
+    App* a = ctx;
+    char t[64];
+    if(total)
+        snprintf(t, sizeof(t), "%s\n%lu%%", stage, (unsigned long)(cur * 100 / total));
+    else
+        snprintf(t, sizeof(t), "%s...", stage);
+    popup_set_text(a->popup, t, 64, 36, AlignCenter, AlignCenter); // redraws on the GUI thread
+}
+
+static void flash_cb(void* ctx, uint32_t index) {
+    App* a = ctx;
+    if(index == FlHelp) {
+        popup_msg(
+            a,
+            "How to flash",
+            "PC: build.py makes\nfirmware/ -> copy to\nSD apps_data/esp_proxy\nHold BOOT, tap RESET");
+        return;
+    }
+    // FlStart: the ESP32 must already be in download mode (BOOT held, RESET tapped).
+    popup_reset(a->popup);
+    popup_set_header(a->popup, "Flashing ESP32", 64, 8, AlignCenter, AlignTop);
+    popup_set_text(a->popup, "connecting...", 64, 36, AlignCenter, AlignCenter);
+    a->popup_ret = RetMenu;
+    go(a, ViewPopup);
+    char err[96] = "";
+    bool ok = esp_flash_run(a->uart, a->storage, FW_DIR, flash_progress, a, err, sizeof(err));
+    popup_msg(a, ok ? "Flash complete" : "Flash failed", ok ? "Tap RESET to run" : err);
+}
+
+static void scene_flash(App* a) {
+    a->mode = ModeFlash;
+    submenu_reset(a->list);
+    submenu_set_header(a->list, "Flash ESP32 firmware");
+    submenu_add_item(a->list, "Start flashing", FlStart, flash_cb, a);
+    submenu_add_item(a->list, "How to (read first)", FlHelp, flash_cb, a);
+    go(a, ViewList);
+}
+
 // ---------------- main menu ----------------
 
-enum { MStart, MStop, MAp, MWifi, MFiles, MStatus, MSerial, MSdlog, MAbout };
+enum { MStart, MStop, MAp, MWifi, MFiles, MStatus, MSerial, MSdlog, MFlash, MAbout };
 
 static void build_menu(App* a);
 
@@ -667,6 +712,7 @@ static void menu_cb(void* ctx, uint32_t index) {
         scene_files(a);
         break;
     case MStatus: scene_status(a); break;
+    case MFlash: scene_flash(a); break;
     case MAbout: popup_msg(a, "NetVoid", "ESP32 server + proxy\ncontrol over UART"); break;
     }
 }
@@ -680,6 +726,7 @@ static void build_menu(App* a) {
     submenu_add_item(a->menu, "Status", MStatus, menu_cb, a);
     submenu_add_item(a->menu, "Serial monitor", MSerial, menu_cb, a);
     submenu_add_item(a->menu, a->logging ? "SD log: ON (stop)" : "SD log: OFF (start)", MSdlog, menu_cb, a);
+    submenu_add_item(a->menu, "Flash ESP32", MFlash, menu_cb, a);
     submenu_add_item(a->menu, "About", MAbout, menu_cb, a);
 }
 

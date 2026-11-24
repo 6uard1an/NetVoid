@@ -39,6 +39,7 @@ protocol that is backward compatible with the original Flipper-extension sketch.
   - [5.6 Navigation model](#56-navigation-model)
   - [5.7 Serial monitor and SD logging](#57-serial-monitor-and-sd-logging)
   - [5.8 Name and icon](#58-name-and-icon)
+  - [5.9 Flashing the ESP32 from the Flipper](#59-flashing-the-esp32-from-the-flipper-espflashc)
 - [6. End-to-end flows](#6-end-to-end-flows)
 - [7. Troubleshooting](#7-troubleshooting)
 - [8. Limits and future work](#8-limits-and-future-work)
@@ -121,6 +122,7 @@ esp32-proxy/
 │   ├── application.fam      App manifest (appid, name "NetVoid", category GPIO, fap_icon)
 │   ├── esp_proxy.c          Whole app: ViewDispatcher, all screens, protocol client
 │   ├── uart.c / uart.h      GPIO USART link + the serial-monitor capture buffer
+│   ├── espflash.c / .h      Flash the ESP32 over UART (esptool ROM protocol)
 │   └── icon.png             10×10 1-bit app icon
 │
 └── sd-browser/index.html    The "Browser" app page written onto the SD card (address bar + Wi-Fi/MAC UI)
@@ -437,6 +439,25 @@ drawn (black) pixels.
 
 ---
 
+### 5.9 Flashing the ESP32 from the Flipper (espflash.c)
+
+NetVoid can re-flash the ESP32 over the GPIO UART, no PC needed. `espflash.c` is a self-contained
+implementation of the public **esptool serial protocol** (SLIP framing + `SYNC` / `SPI_ATTACH` /
+`FLASH_BEGIN` / `FLASH_DATA` / `FLASH_END`) running the ESP32's **ROM bootloader** in uncompressed
+mode (no stub).
+
+- **Images** come from the Flipper SD card at `apps_data/esp_proxy/firmware/`, listed in `flash.txt`
+  as `<hex offset> <filename>` lines. `build.py` produces this folder: `bootloader.bin` @ `0x1000`,
+  `partitions.bin` @ `0x8000`, `boot_app0.bin` @ `0xe000`, `app.bin` @ `0x10000`.
+- **Download mode** is entered manually (hold BOOT, tap RESET) — no EN/IO0 auto-reset wiring is
+  required, so it works on boards that only expose BOOT/RESET as buttons (e.g. the FlipMods Mini).
+- **Flow:** `esp_flash_run()` flushes the UART, `SYNC`s with the ROM, sends a best-effort
+  `SPI_ATTACH`, then for each image does `FLASH_BEGIN` + a loop of `FLASH_DATA` blocks (4 KB, padded
+  with `0xFF`, XOR-checksummed), and finishes with `FLASH_END` (reboot). Each block is retried up to
+  3×. Progress is reported to the UI via a callback that updates the popup.
+- **Speed:** ~2–3 min at 115200 for the full ~1.3 MB set. **Verification:** per-block ACKs (no MD5
+  pass in this version). Tested on the Sacred Labs FlipMods Mini.
+
 ## 6. End-to-end flows
 
 **Browse a website**
@@ -475,6 +496,6 @@ drawn (black) pixels.
 - The client↔ESP32 link is plain HTTP over an open AP — **don't sign in or pay** through it.
 - ≤2 concurrent HTTPS upstreams, TLS 1.2 only, no HTTP/2, service workers, WebCrypto subtle, camera or
   DRM video. Sites that check their own hostname in JS may break.
-- **Not yet built:** flashing the ESP32 firmware *from the Flipper* over GPIO. The existing **ESP
-  Flasher** Flipper app already does this; the plan is to emit the bootloader/partition/app `.bin`
-  files onto the SD card so ESP Flasher can pick them up (no PC needed).
+- **Flashing the ESP32 from the Flipper** is built in (NetVoid → **Flash ESP32**); see §5.9. It's
+  currently tested on the FlipMods Mini. A future improvement would add an MD5 verify pass and
+  (where the board wires EN/IO0 to Flipper GPIO) automatic download-mode entry.

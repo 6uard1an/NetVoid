@@ -72,6 +72,16 @@ run([ESPTOOL, "--chip", "esp32", "elf2image", *img, "-o", OUT / "boot.bin", SDK 
 run([HW / "tools/gen_esp32part.exe", "-q", HW / "tools/partitions/default_8MB.csv", OUT / "parts.bin"])
 print(run([BIN / "xtensa-esp32-elf-size.exe", elf]))
 print("image", (OUT / "proxy.bin").stat().st_size, "bytes")
+
+# Bundle the four images for flashing from the Flipper (NetVoid app reads flash.txt off the SD card).
+import shutil
+FW = HERE / "firmware"
+FW.mkdir(exist_ok=True)
+bundle = [("0x1000", OUT / "boot.bin", "bootloader.bin"), ("0x8000", OUT / "parts.bin", "partitions.bin"),
+          ("0xe000", HW / "tools/partitions/boot_app0.bin", "boot_app0.bin"), ("0x10000", OUT / "proxy.bin", "app.bin")]
+for off, srcp, nm in bundle: shutil.copy(srcp, FW / nm)
+(FW / "flash.txt").write_text("".join(f"{off} {nm}\n" for off, _, nm in bundle), newline="\n")
+print("firmware bundle ->", FW, "(copy this folder to the Flipper SD: apps_data/esp_proxy/firmware)")
 port = next((x for x in sys.argv[1:] if x.startswith("COM")), None)
 if port:
     print(run([ESPTOOL, "--chip", "esp32", "--port", port, "--baud", "115200", "write-flash", "-z", *img, "0x1000", OUT / "boot.bin",

@@ -66,7 +66,8 @@ sign-in / captive page** — and that page is a full web browser.
 - A **microSD card** for the SD server (**≤ 32 GB, formatted FAT32**; insert it before powering the
   board). Only needed to serve local games/apps and a default home page.
 - A **Flipper Zero** (optional — only for the NetVoid control app; the firmware works standalone).
-- A Windows PC with **Python** for building/flashing.
+- A Windows PC with **Python** to build the firmware and do the **first** flash. After that you can
+  re-flash the ESP32 **straight from the Flipper** — see [Flashing from the Flipper](#flashing-from-the-flipper) — no PC needed.
 
 ---
 
@@ -131,6 +132,23 @@ From the app you can:
 4. Type an address. `https://example.com/a` is served to you as `http://example.com.esp32/a`.
 
 ---
+
+## Flashing from the Flipper
+
+Once NetVoid is installed, you can re-flash the ESP32 from the Flipper with **no PC**:
+
+1. **On the PC**, run `python build.py`. It writes a `firmware/` folder (bootloader, partitions,
+   boot_app0, app, and `flash.txt`).
+2. **Copy that `firmware/` folder to the Flipper's SD card** at `apps_data/esp_proxy/firmware/`
+   (e.g. with qFlipper). You only re-copy it when the firmware changes.
+3. Put the ESP32 in **download mode**: **hold BOOT, tap RESET, release BOOT.**
+4. In NetVoid: **Flash ESP32 → Start flashing.** A progress screen shows each image as it writes.
+5. It flashes over the same 115200 UART (~2–3 min). On success, **tap RESET** to run the new firmware.
+
+> **Currently tested on the [FlipMods Mini](https://sacredlabstech.com/boards/mini/).** NetVoid talks
+> to the ESP32's ROM bootloader over UART (no auto-reset wiring needed) — any board works as long as
+> you can reach its BOOT/RESET buttons and its UART is on the Flipper's pins 13/14. If it can't
+> connect, re-enter download mode (hold BOOT, tap RESET) and start again.
 
 ## Good to know
 

@@ -19,6 +19,9 @@ int uart_read_line(Uart* u, char* buf, size_t buf_sz, uint32_t timeout_ms);
 // Read exactly len raw bytes (for file transfers). Returns bytes read.
 size_t uart_read_bytes(Uart* u, uint8_t* buf, size_t len, uint32_t timeout_ms);
 
+// Read a single byte from the command channel; returns 0-255, or -1 on timeout.
+int uart_read_byte(Uart* u, uint32_t timeout_ms);
+
 // Drop anything buffered on the command channel (call before a request).
 // Does NOT touch the serial-monitor log capture.
 void uart_flush(Uart* u);
