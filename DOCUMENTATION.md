@@ -81,6 +81,12 @@ protocol that is backward compatible with the original Flipper-extension sketch.
 | SD card CS | **GPIO5** | — | SPI, card lives in the ESP32 the whole time |
 | BOOT button | GPIO0 | — | hold 5 s to factory-reset |
 
+- **Recommended board:** the [FlipMods Mini by Sacred Labs](https://sacredlabstech.com/boards/mini/)
+  — an ESP32‑WROOM‑32UE (plain ESP32, no PSRAM) that plugs onto the Flipper's GPIO header and carries
+  a microSD slot, so it provides the ESP32, the SD storage, and the UART-to-Flipper link in one board
+  (tested and verified with NetVoid). Flash NetVoid onto it via its USB‑C, which overwrites the
+  Marauder firmware it ships with. Any plain ESP32 with a wired microSD module also works.
+- SD cards must be **≤ 32 GB, formatted FAT32**, and inserted before power-on.
 - The **SD card stays in the ESP32**, never the PC. It is mounted at power-on (`sdMount()` in
   `sdsite.h`), which steps down SPI clock through `{8,4,2,1,0.4} MHz` and verifies it can actually
   read a directory before accepting the card.

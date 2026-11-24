@@ -56,8 +56,15 @@ sign-in / captive page** — and that page is a full web browser.
 
 ## What you need
 
-- An **ESP32** dev board (no PSRAM required).
-- A **microSD card** (optional — only for serving local games/apps and the default home page).
+- An **ESP32** board (plain ESP32 / WROOM, no PSRAM required).
+  **Recommended:** the [**FlipMods Mini** by Sacred Labs](https://sacredlabstech.com/boards/mini/) —
+  an ESP32‑WROOM‑32UE board that plugs straight onto the Flipper Zero's GPIO header **and** has an
+  onboard **microSD slot** for your HTML/game files. It's been tested and verified to run NetVoid, so
+  it gives you the ESP32, the SD storage, and the Flipper connection in a single board with no wiring.
+  Its USB‑C port flashes the firmware directly (this overwrites the Marauder firmware it ships with).
+  Any plain ESP32 with a microSD card wired to it also works.
+- A **microSD card** for the SD server (**≤ 32 GB, formatted FAT32**; insert it before powering the
+  board). Only needed to serve local games/apps and a default home page.
 - A **Flipper Zero** (optional — only for the NetVoid control app; the firmware works standalone).
 - A Windows PC with **Python** for building/flashing.
 
@@ -82,7 +89,9 @@ Flipper app, or see [DOCUMENTATION.md](DOCUMENTATION.md) for the serial console.
 
 ## Install — Part 2 (optional): the NetVoid Flipper app
 
-Wire the Flipper's GPIO UART to the ESP32 (three wires), with the ESP32 sitting in the Flipper:
+If you're using the recommended [FlipMods Mini](https://sacredlabstech.com/boards/mini/), it mates
+with the Flipper's GPIO header directly — just seat the board, nothing to wire. For a bare ESP32,
+wire the Flipper's GPIO UART to the board (three wires):
 
 ![Wiring](docs/wiring.png)
 
