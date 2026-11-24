@@ -152,8 +152,10 @@ new firmware is packed into the `.fap`.
 > as long as you can reach its BOOT/RESET buttons and its UART is on the Flipper's pins 13/14. If it
 > can't connect, re-enter download mode (hold BOOT, tap RESET) and start again.
 >
-> This bundles ~1.3 MB into the `.fap`. (Even ESP Flasher can't hold the firmware in RAM — it reads
-> the bins off the SD card. NetVoid instead ships them inside the app and auto-deploys them.)
+> This bundles ~1.3 MB into the `.fap`. Like ESP Flasher's **Quick Flash**, the firmware ships with
+> the app and deploys itself — nothing to place on the SD by hand. (It can't live purely in the
+> executable: a `.fap` loads into the Flipper's 256 KB RAM, so the bins ride inside the `.fap` file
+> and run from the deployed copy.)
 
 ## Good to know
 
